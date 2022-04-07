@@ -1,41 +1,73 @@
-function Ampulheta(size) {
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
 
-// Se o tamanho for menor que 20 irá retornar uma mensagem de erro
-  if (size >= 20) {
+const app = express();
 
-    // Definindo tamanho da primeira parte da ampulheta
-    for (let line = 0; line < size; line += 1) {
-    // Desenhando primeira linha de "#" à esquerda
-      process.stdout.write("#");
-      for (let blank = 0; blank < line; blank += 1) {
-        // Desenhando espaços em branco
-        process.stdout.write(" ");
-      }
-      for (let star = 0; star < (size - line) * 2 - 1; star += 1) {
-        // Desenhando os "#"
-        process.stdout.write("#");
-      }
-      // Imprimindo tudo no fim da operação, pois o console.log se diferencia do "process.stdout" tendo um break no fim
-      console.log();
-    }
-    // Definindo tamanho da segunda parte da ampulheta
-    for (let line = 2; line <= size; line += 1) {
-      // Desenhando primeira linha de "#" à esquerda
-      process.stdout.write("#");
-      for (let blank = 1; blank <= size - line; blank += 1) {
-        // Desenhando espaços em branco
-        process.stdout.write(" ");
-      }
-      for (let star = 0; star < 2 * line - 1; star += 1) {
-        // Desenhando os "#"
-        process.stdout.write("#");
-      }
-      // Imprimindo tudo no fim da operação, pois o console.log se diferencia do "process.stdout" tendo um break no fim
-      console.log();
-    }
-  } else return console.log("size deve ser maior ou igual a 20");
+const { Character, Book } = require('./models')
+
+
+app.use(express.json());
+
+const PORT = process.env.PORT || 3010;
+
+ app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*' )
+    app.use(cors());
+    next();
+}) 
+
+app.get('/', async (req, res) => {
+    try { 
+    const character = await Character.findAll({
+        include: [{
+            model: Book, as: 'Books',
+        }]
+    });
+    return res.status(200).json(character);
 }
+    catch(err) { 
+        return res.status(400).json({message: err.message})
+    }
+})
 
-//Insira o número do size da sua ampulheta na função
+app.post('/character', async (req, res) => {
+    try { 
+    const { name } = req.body;
+    if (!name) return res.status(400).json({message: "Tem que apresentar um name!"})
+    const character = await Character.findOne({
+        where: { name },
+        include: [{
+            model: Book, as: 'Books',
+        }]});
+    if (!character) return res.status(400).json({message: "Não achamos este nome!"})
+    return res.status(200).json(character);
+}
+    catch(err) { 
+        return res.status(400).json({message: err.message})
+    }
+})
 
-Ampulheta(20);
+
+app.post('/new', async (req, res) => {
+    try { 
+    const { name, codename, years, localization, informations, id_book } = req.body;
+    if (!name || !codename|| !years || !localization, !informations, !id_book ) return res.status(500).json({
+        message: 'Precisa preencher todos os campos!!'
+    })
+    const namecharacter = await Character.findOne({
+        where: { name }});
+    if (namecharacter) return res.status(400).json({ message: "Personagem já registrado!" })
+      const character = await Character.create({
+          name, codename, years, localization, informations, id_book
+      });
+    return res.status(200).json(character);
+}
+    catch(err) { 
+        return res.status(400).json({message: err.message})
+    }
+})
+
+app.listen(PORT, () => {
+    console.log(`Servidor na porta ${PORT}`)
+})
